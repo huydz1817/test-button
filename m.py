@@ -6,7 +6,7 @@ import requests
 import datetime
 import os
 import signal
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # insert your Telegram bot token here
 bot = telebot.TeleBot('8279142566:AAE7719-93KPDHFXc0q8Y1eMCKJ_FUOpk0E')
@@ -209,10 +209,7 @@ def show_command_logs(message):
     try:
         with open(LOG_FILE, "r") as file:
             logs = [log for log in file.readlines() if f"UserID: {user_id}" in log]
-            if logs:
-                bot.reply_to(message, "Your Logs:\n" + "".join(logs))
-            else:
-                bot.reply_to(message, "No logs ❌")
+            bot.reply_to(message, "Your Logs:\n" + "".join(logs) if logs else "No logs ❌")
     except FileNotFoundError:
         bot.reply_to(message, "No logs ❌")
 
@@ -255,13 +252,12 @@ def broadcast_message(message):
             for uid in file.read().splitlines():
                 try:
                     bot.send_message(uid, msg)
-                except:
-                    pass
+                except: pass
         bot.reply_to(message, "Broadcast sent ✅")
     else:
         bot.reply_to(message, "Usage: /broadcast <msg>")
 
-# ================== Attack/Stop bằng nút inline ==================
+# ================== NEW: Attack/Stop bằng nút ==================
 def send_menu(chat_id):
     markup = InlineKeyboardMarkup()
     markup.add(
@@ -270,17 +266,10 @@ def send_menu(chat_id):
     )
     bot.send_message(chat_id, "Choose action:", reply_markup=markup)
 
-# ================== Reply Keyboard ==================
-def send_reply_keyboard(chat_id):
-    markup = ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row("🚀 Attack", "⛔ Stop")
-    bot.send_message(chat_id, "Choose action:", reply_markup=markup)
-
 @bot.message_handler(commands=['start'])
 def welcome_start(message):
     bot.reply_to(message, f"👋 Welcome {message.from_user.first_name}")
-    send_menu(message.chat.id)            # inline keyboard
-    send_reply_keyboard(message.chat.id)  # reply keyboard
+    send_menu(message.chat.id)
 
 # Nhận tin nhắn IP/Port/Time
 @bot.message_handler(func=lambda m: True)
@@ -304,21 +293,6 @@ def handle_target(message):
     last_target[user_id] = {"ip": ip, "port": int(port), "time": int(time)}
     bot.reply_to(message, f"🎯 Target Detected: {ip}:{port}\nTime: {time}s")
     send_menu(message.chat.id)
-
-# --- Nhận text từ reply keyboard ---
-@bot.message_handler(func=lambda m: m.text in ["🚀 Attack", "⛔ Stop"])
-def handle_reply_buttons(message):
-    # Giả lập callback của inline button
-    class DummyCall:
-        def __init__(self, msg, data):
-            self.message = msg
-            self.data = data
-            self.id = "reply_fake_id"
-
-    if message.text == "🚀 Attack":
-        callback_handler(DummyCall(message, "attack"))
-    elif message.text == "⛔ Stop":
-        callback_handler(DummyCall(message, "stop"))
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_handler(call):
